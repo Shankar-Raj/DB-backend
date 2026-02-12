@@ -15,13 +15,13 @@ public class LiveControlController {
         this.pollingService = pollingService;
     }
 
-    @GetMapping("/live/start")
+    @GetMapping("/websocket-open")
     public String start() {
         pollingService.start();
         return "Live tracking started";
     }
 
-    @GetMapping("/live/stop")
+    @GetMapping("/websocket-close")
     public String stop() {
         pollingService.stop();
         return "Live tracking stopped";
