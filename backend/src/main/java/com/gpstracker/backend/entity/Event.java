@@ -17,6 +17,9 @@ public class Event {
     @Column(name = "type")
     private String type;
 
+    @Column(name = "positionid")
+    private Long positionId;
+
     @Column(name = "eventtime")
     private LocalDateTime eventtime;
 
