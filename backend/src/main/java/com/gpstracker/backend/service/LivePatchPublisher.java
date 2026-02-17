@@ -15,7 +15,6 @@ public class LivePatchPublisher {
     }
 
     public void publish(DeviceLivePatchDTO dto) {
-        System.out.println("Publishing LivePatchDTO " + dto);
         messagingTemplate.convertAndSend("/topic/live", dto);
     }
 }

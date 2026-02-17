@@ -92,13 +92,8 @@ public class PositionPollingService {
                 Integer course = row[6] != null ? ((Number) row[6]).intValue() : null;
                 String eventType = (String) row[7];
 
-                String locationName = "test-location";
-
-                /*
-                // Enable if needed
                 String locationName = reverseGeocodeService
                         .getLocationName(latitude, longitude);
-                */
 
                 DeviceLivePatchDTO dto = new DeviceLivePatchDTO(
                         deviceId,
