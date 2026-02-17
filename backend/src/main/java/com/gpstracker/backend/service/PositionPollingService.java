@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.gpstracker.backend.dto.DeviceLivePatchDTO;
 import com.gpstracker.backend.repository.PositionLiveRepository;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -16,77 +15,118 @@ import java.util.List;
 public class PositionPollingService {
 
     private final PositionLiveRepository repository;
+    private final ReverseGeocodeService reverseGeocodeService;
     private final LivePatchPublisher publisher;
     private final JdbcTemplate jdbcTemplate;
 
-    private volatile boolean liveEnabled = false;
-    private Long lastProcessedId = 0L;
+    private Long lastProcessedId;
 
     public PositionPollingService(
             PositionLiveRepository repository,
+            ReverseGeocodeService reverseGeocodeService,
             LivePatchPublisher publisher,
             JdbcTemplate jdbcTemplate
     ) {
         this.repository = repository;
+        this.reverseGeocodeService = reverseGeocodeService;
         this.publisher = publisher;
         this.jdbcTemplate = jdbcTemplate;
+
+        System.out.println("PositionPollingService bean created");
     }
 
+    /**
+     * Start polling from the first record.
+     */
     @PostConstruct
     public void init() {
-        Long maxId = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(MAX(id),0) FROM tc_positions",
+
+        Long minId = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MIN(id), 0) FROM tc_positions",
                 Long.class
         );
-        lastProcessedId = maxId != null ? maxId : 0L;
+
+        lastProcessedId = (minId != null ? minId : 0) - 1;
+
+        System.out.println("Live tracking started from ID: " + lastProcessedId);
     }
 
-    public void start() {
-        liveEnabled = true;
-    }
-
-    public void stop() {
-        liveEnabled = false;
-    }
-
-    @Scheduled(fixedDelay = 2000)
+    /**
+     * Poll database every 5 seconds
+     */
+    @Scheduled(fixedDelay = 5000)
     public void poll() {
 
-        if (!liveEnabled) return;
+        try {
 
-        List<Object[]> rows =
-                repository.findNewLivePositions(lastProcessedId);
+            System.out.println("Polling with lastProcessedId = " + lastProcessedId);
 
-        for (Object[] row : rows) {
+            List<Object[]> rows =
+                    repository.findNewLivePositions(lastProcessedId);
 
-            Long id = ((Number) row[0]).longValue();
-            Long deviceId = ((Number) row[1]).longValue();
-            Double latitude = (Double) row[2];
-            Double longitude = (Double) row[3];
-            Double speed = row[4] != null
-                    ? ((Number) row[4]).doubleValue()
-                    : null;
-            LocalDateTime fixtime =
-                    ((Timestamp) row[5]).toLocalDateTime();
-            Integer course = row[6] != null
-                    ? ((Number) row[6]).intValue()
-                    : null;
-            String eventType = (String) row[7];
+            System.out.println("Rows found = " + rows.size());
 
-            DeviceLivePatchDTO patch =
-                    new DeviceLivePatchDTO(
-                            deviceId,
-                            latitude,
-                            longitude,
-                            speed,
-                            course,
-                            fixtime,
-                            eventType
-                    );
+            if (rows.isEmpty()) {
+                return;
+            }
 
-            publisher.publish(patch);
+            Long highestId = lastProcessedId;
 
-            lastProcessedId = id;
+            for (Object[] row : rows) {
+
+                Long id = ((Number) row[0]).longValue();
+                Long deviceId = ((Number) row[1]).longValue();
+                Double latitude = row[2] != null ? ((Number) row[2]).doubleValue() : null;
+                Double longitude = row[3] != null ? ((Number) row[3]).doubleValue() : null;
+                Double speed = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+
+                // FIXED TIMESTAMP ISSUE
+                LocalDateTime fixTime = null;
+
+                if (row[5] instanceof LocalDateTime ldt) {
+                    fixTime = ldt;
+                } else if (row[5] instanceof java.sql.Timestamp ts) {
+                    fixTime = ts.toLocalDateTime();
+                }
+
+                Integer course = row[6] != null ? ((Number) row[6]).intValue() : null;
+                String eventType = (String) row[7];
+
+                String locationName = "test-location";
+
+                /*
+                // Enable if needed
+                String locationName = reverseGeocodeService
+                        .getLocationName(latitude, longitude);
+                */
+
+                DeviceLivePatchDTO dto = new DeviceLivePatchDTO(
+                        deviceId,
+                        latitude,
+                        longitude,
+                        speed,
+                        course,
+                        fixTime,
+                        eventType,
+                        locationName
+                );
+
+                publisher.publish(dto);
+
+                if (id > highestId) {
+                    highestId = id;
+                }
+            }
+
+            // Update pointer AFTER successful processing
+            lastProcessedId = highestId;
+
+            System.out.println("Updated lastProcessedId to = " + lastProcessedId);
+
+        } catch (Exception e) {
+
+            System.out.println("ERROR INSIDE POLL");
+            e.fillInStackTrace();   // Proper stack trace
         }
     }
 }

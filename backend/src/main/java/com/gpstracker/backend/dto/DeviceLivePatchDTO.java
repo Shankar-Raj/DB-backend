@@ -11,6 +11,7 @@ public class DeviceLivePatchDTO {
     private Integer course;
     private LocalDateTime fixtime;
     private String eventtype;
+    private String locationName;
 
     public DeviceLivePatchDTO(
             Long deviceId,
@@ -19,7 +20,8 @@ public class DeviceLivePatchDTO {
             Double speed,
             Integer course,
             LocalDateTime fixtime,
-            String eventtype
+            String eventtype,
+            String locationName
     ) {
         this.deviceId = deviceId;
         this.latitude = latitude;
@@ -28,6 +30,7 @@ public class DeviceLivePatchDTO {
         this.course = course;
         this.fixtime = fixtime;
         this.eventtype = eventtype;
+        this.locationName = locationName;
     }
 
     public Long getDeviceId() { return deviceId; }
@@ -37,4 +40,5 @@ public class DeviceLivePatchDTO {
     public Integer getCourse() { return course; }
     public LocalDateTime getFixtime() { return fixtime; }
     public String getEventtype() { return eventtype; }
+    public String getLocationName() { return locationName; }
 }

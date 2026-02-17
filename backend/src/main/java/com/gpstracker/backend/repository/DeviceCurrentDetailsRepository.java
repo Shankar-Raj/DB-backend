@@ -28,7 +28,7 @@ public interface DeviceCurrentDetailsRepository extends JpaRepository<Device, Lo
     FROM Device d
     LEFT JOIN Event e
         ON e.id = (
-            SELECT MAX(ev.id)
+            SELECT MIN(ev.id)
             FROM Event ev
             WHERE ev.deviceId = d.id
         )
