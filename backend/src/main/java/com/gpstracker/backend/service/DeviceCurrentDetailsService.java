@@ -10,15 +10,31 @@ import java.util.List;
 public class DeviceCurrentDetailsService {
 
     private final DeviceCurrentDetailsRepository repository;
+    private final ReverseGeocodeService reverseGeocodeService;
 
-    public DeviceCurrentDetailsService(DeviceCurrentDetailsRepository repository) {
+    public DeviceCurrentDetailsService(
+            DeviceCurrentDetailsRepository repository,
+            ReverseGeocodeService reverseGeocodeService) {
 
         this.repository = repository;
+        this.reverseGeocodeService = reverseGeocodeService;
     }
 
     public List<DeviceCurrentDetailsDTO> getAllLiveDevices() {
-        return repository.findAllLiveDevices();
+
+        List<DeviceCurrentDetailsDTO> devices = repository.findAllLiveDevices();
+
+        for (DeviceCurrentDetailsDTO device : devices) {
+
+            if (device.latitude != null && device.longitude != null) {
+
+                device.locationName = reverseGeocodeService
+                        .getLocationName(device.latitude, device.longitude);
+            } else {
+                device.locationName = "Unknown Location";
+            }
+        }
+
+        return devices;
     }
-
-
 }

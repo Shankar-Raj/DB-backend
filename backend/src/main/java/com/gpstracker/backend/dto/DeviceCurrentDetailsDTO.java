@@ -21,6 +21,8 @@ public class DeviceCurrentDetailsDTO {
     public Long groupId;
     public String status;
 
+    public String locationName;
+
     public DeviceCurrentDetailsDTO(
             Long deviceId,
             String uniqueId,
