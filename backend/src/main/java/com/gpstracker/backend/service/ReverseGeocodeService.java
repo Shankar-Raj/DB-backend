@@ -19,8 +19,6 @@ public class ReverseGeocodeService {
 
     public String getLocationName(Double lat, Double lon) {
 
-        if (lat == null || lon == null) return "no-lat,lng";
-
         String key = String.format("%.3f,%.3f", lat, lon);
 
         // Use computeIfAbsent (cleaner & thread-safe)

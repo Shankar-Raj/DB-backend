@@ -52,9 +52,9 @@ public class PositionPollingService {
     }
 
     /**
-     * Poll database every 5 seconds
+     * Poll database every 10 seconds
      */
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 10000)
     public void poll() {
 
         try {
