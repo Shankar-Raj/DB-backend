@@ -50,8 +50,6 @@ public class PositionPollingService {
 
     public void pollInternal() {
 
-        System.out.println("Polling started...");
-
         try {
 
             List<Object[]> rows =
