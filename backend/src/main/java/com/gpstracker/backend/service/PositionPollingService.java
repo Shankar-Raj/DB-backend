@@ -2,7 +2,6 @@ package com.gpstracker.backend.service;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.gpstracker.backend.dto.DeviceLivePatchDTO;
@@ -31,8 +30,6 @@ public class PositionPollingService {
         this.reverseGeocodeService = reverseGeocodeService;
         this.publisher = publisher;
         this.jdbcTemplate = jdbcTemplate;
-
-        System.out.println("PositionPollingService bean created");
     }
 
     /**
@@ -48,23 +45,17 @@ public class PositionPollingService {
 
         lastProcessedId = (minId != null ? minId : 0) - 1;
 
-        System.out.println("Live tracking started from ID: " + lastProcessedId);
+        System.out.println("last Processed ID: " + lastProcessedId);
     }
 
-    /**
-     * Poll database every 10 seconds
-     */
-    @Scheduled(fixedDelay = 10000)
-    public void poll() {
+    public void pollInternal() {
+
+        System.out.println("Polling started...");
 
         try {
 
-            System.out.println("Polling with lastProcessedId = " + lastProcessedId);
-
             List<Object[]> rows =
                     repository.findNewLivePositions(lastProcessedId);
-
-            System.out.println("Rows found = " + rows.size());
 
             if (rows.isEmpty()) {
                 return;
@@ -80,7 +71,6 @@ public class PositionPollingService {
                 Double longitude = row[3] != null ? ((Number) row[3]).doubleValue() : null;
                 Double speed = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
 
-                // FIXED TIMESTAMP ISSUE
                 LocalDateTime fixTime = null;
 
                 if (row[5] instanceof LocalDateTime ldt) {
@@ -92,8 +82,8 @@ public class PositionPollingService {
                 Integer course = row[6] != null ? ((Number) row[6]).intValue() : null;
                 String eventType = (String) row[7];
 
-                String locationName = reverseGeocodeService
-                        .getLocationName(latitude, longitude);
+                String locationName =
+                        reverseGeocodeService.getLocationName(latitude, longitude);
 
                 DeviceLivePatchDTO dto = new DeviceLivePatchDTO(
                         deviceId,
@@ -113,15 +103,10 @@ public class PositionPollingService {
                 }
             }
 
-            // Update pointer AFTER successful processing
             lastProcessedId = highestId;
 
-            System.out.println("Updated lastProcessedId to = " + lastProcessedId);
-
         } catch (Exception e) {
-
-            System.out.println("ERROR INSIDE POLL");
-            e.fillInStackTrace();   // Proper stack trace
+            System.out.println("Error inside poll"+e);
         }
     }
 }
