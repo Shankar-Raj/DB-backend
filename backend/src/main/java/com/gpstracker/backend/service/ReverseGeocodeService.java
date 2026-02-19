@@ -1,5 +1,6 @@
 package com.gpstracker.backend.service;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -18,13 +19,15 @@ public class ReverseGeocodeService {
 
     public String getLocationName(Double lat, Double lon) {
 
-        if (lat == null || lon == null) return "";
+        if (lat == null || lon == null) return "no-lat,lng";
 
         String key = String.format("%.3f,%.3f", lat, lon);
 
-        if (cache.containsKey(key)) {
-            return cache.get(key);
-        }
+        // Use computeIfAbsent (cleaner & thread-safe)
+        return cache.computeIfAbsent(key, k -> fetchLocation(lat, lon));
+    }
+
+    private String fetchLocation(Double lat, Double lon) {
 
         try {
             String url = "https://nominatim.openstreetmap.org/reverse" +
@@ -36,26 +39,49 @@ public class ReverseGeocodeService {
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response =
-                    restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+            ResponseEntity<Map<String, Object>> response =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.GET,
+                            entity,
+                            new ParameterizedTypeReference<>() {}
+                    );
 
-            Map address = (Map) response.getBody().get("address");
+            Map<String, Object> body = response.getBody();
+            if (body == null) return "can't fetch location";
 
-            String city = (String) address.getOrDefault("city",
-                    address.getOrDefault("town",
-                            address.getOrDefault("village", "")));
+            Object addressObj = body.get("address");
+            if (!(addressObj instanceof Map)) return "can't fetch location";
 
-            String state = (String) address.getOrDefault("state", "");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> address =
+                    (Map<String, Object>) addressObj;
 
-            String location = city + ", " + state;
+            String city = getString(address, "city",
+                    getString(address, "town",
+                            getString(address, "village", "")));
 
-            cache.put(key, location);
+            String state = getString(address, "state", "");
 
-            return location;
+            if (!city.isEmpty()) {
+                if (city.length() < 13 && !state.isEmpty()) {
+                    return city + ", " + state;
+                }
+                return city.substring(0, 10) + "..";
+            } else {
+                return state;
+            }
 
         } catch (Exception e) {
-            return "";
+            return "can't fetch location";
         }
     }
-}
 
+    private String getString(Map<String, Object> map,
+                             String key,
+                             String defaultValue) {
+
+        Object value = map.get(key);
+        return value != null ? value.toString() : defaultValue;
+    }
+}
